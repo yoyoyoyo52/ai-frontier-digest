@@ -174,6 +174,294 @@ def prune_seen(
     return {key: value for key, value in seen.items() if value >= cutoff}
 
 
+KEYWORDS = (
+    "llm", "gpt", "claude", "gemini", "llama", "qwen", "deepseek", "mistral",
+    "transformer", "diffusion", "agent", "rag", "fine-tune", "benchmark",
+    "moe", "multimodal", "reasoning",
+)
+
+BASE_SCORE = {
+    "arxiv": 60.0,
+    "vendor": 70.0,
+    "hn": 0.0,
+    "reddit": 0.0,
+    "chinese": 65.0,
+}
+
+# 实测于 2026-10-26：openai.com 与 anthropic.com 在本网络下 SSL 超时，
+# 机器之心 RSS 返回空喂，暂不启用。有代理后可把地址加回。
+VENDOR_FEEDS = {
+    "DeepMind": "https://deepmind.google/blog/rss.xml",
+    "Meta Engineering": "https://engineering.fb.com/feed/",
+    "Qwen": "https://qwenlm.github.io/blog/index.xml",
+    "Mistral": "https://mistral.ai/rss.xml",
+}
+
+CHINESE_FEEDS = {
+    "量子位": "https://www.qbitai.com/feed",
+}
+
+ARXIV_API = "http://export.arxiv.org/api/query"
+HN_API = "https://hn.algolia.com/api/v1/search_by_date"
+REDDIT_FEEDS = {
+    "LocalLLaMA": "https://www.reddit.com/r/LocalLLaMA/top.json?t=day&limit=25",
+    "MachineLearning": "https://www.reddit.com/r/MachineLearning/top.json?t=day&limit=25",
+}
+
+
+def strip_html(text: str) -> str:
+    """去掉 HTML 标签并压缩空白。"""
+    without_tags = re.sub(r"<[^>]+>", " ", text or "")
+    unescaped = html.unescape(without_tags)
+    return re.sub(r"\s+", " ", unescaped).strip()
+
+
+def parse_entry_date(entry) -> datetime | None:
+    """从 feed 条目解析发布时间，返回 UTC datetime 或 None。"""
+    for attr in ("published", "updated"):
+        raw = entry.get(attr)
+        if not raw:
+            continue
+        try:
+            parsed = parsedate_to_datetime(raw)
+        except (TypeError, ValueError):
+            try:
+                parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            except ValueError:
+                parsed = None
+        if parsed is not None:
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+
+    for attr in ("published_parsed", "updated_parsed"):
+        struct = entry.get(attr)
+        if struct:
+            return datetime(*struct[:6], tzinfo=timezone.utc)
+    return None
+
+
+def load_feed(url: str):
+    """带超时与 UA 地抓取并解析一个 feed。"""
+    response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+    return feedparser.parse(response.content)
+
+
+def has_keyword(text: str) -> bool:
+    """标题是否命中 AI 关键词表。"""
+    lowered = text.lower()
+    return any(word in lowered for word in KEYWORDS)
+
+
+def make_scored_item(
+    *, url: str, title: str, source: str, published: datetime, raw: str, score: float
+) -> Item:
+    """构造 Item，统一生成 id。"""
+    return Item(
+        id=item_id(url),
+        title=title.strip(),
+        url=url,
+        source=source,
+        published=published,
+        raw=strip_html(raw)[:400],
+        score=float(score),
+    )
+
+
+def fetch_feed_source(url: str, source: str, since: datetime) -> list[Item]:
+    """从单个 RSS/Atom 源抓取窗口内条目。"""
+    feed = load_feed(url)
+    items: list[Item] = []
+    for entry in feed.entries:
+        published = parse_entry_date(entry)
+        title = (entry.get("title") or "").strip()
+        link = (entry.get("link") or "").strip()
+        if not published or published < since or not title or not link:
+            continue
+        raw = entry.get("summary") or entry.get("description") or ""
+        score = BASE_SCORE[source]
+        if has_keyword(title):
+            score += 10
+        items.append(
+            make_scored_item(
+                url=link, title=title, source=source, published=published, raw=raw, score=score
+            )
+        )
+    return items
+
+
+def fetch_arxiv(since: datetime) -> list[Item]:
+    """抓取 arXiv cs.CL/cs.LG/cs.AI 最新提交。"""
+    params = {
+        "search_query": "cat:cs.CL OR cat:cs.LG OR cat:cs.AI",
+        "sortBy": "submittedDate",
+        "sortOrder": "descending",
+        "max_results": "80",
+    }
+    response = requests.get(
+        ARXIV_API, params=params, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT
+    )
+    response.raise_for_status()
+    feed = feedparser.parse(response.content)
+    items: list[Item] = []
+    for entry in feed.entries:
+        published = parse_entry_date(entry)
+        title = (entry.get("title") or "").strip()
+        link = (entry.get("link") or "").strip()
+        if not published or published < since or not title or not link:
+            continue
+        score = BASE_SCORE["arxiv"] + (10 if has_keyword(title) else 0)
+        items.append(
+            make_scored_item(
+                url=link,
+                title=title,
+                source="arxiv",
+                published=published,
+                raw=entry.get("summary") or "",
+                score=score,
+            )
+        )
+    return items
+
+
+def fetch_vendor(since: datetime) -> list[Item]:
+    """抓取厂商官方博客，单源失败不影响其他源。"""
+    items: list[Item] = []
+    for name, url in VENDOR_FEEDS.items():
+        try:
+            items.extend(fetch_feed_source(url, "vendor", since))
+        except Exception as exc:  # 单源失败只记录
+            log.warning("[vendor/%s] 失败：%s", name, exc)
+    return items
+
+
+def fetch_chinese(since: datetime) -> list[Item]:
+    """抓取中文科技媒体，不做关键词过滤。"""
+    items: list[Item] = []
+    for name, url in CHINESE_FEEDS.items():
+        try:
+            items.extend(fetch_feed_source(url, "chinese", since))
+        except Exception as exc:
+            log.warning("[chinese/%s] 失败：%s", name, exc)
+    return items
+
+
+def fetch_hn(since: datetime) -> list[Item]:
+    """抓取 HN 高分 AI 讨论。"""
+    threshold = int(since.timestamp())
+    items: list[Item] = []
+    seen_ids: set[str] = set()
+    for query in ("LLM", "AI model"):
+        response = requests.get(
+            HN_API,
+            params={
+                "query": query,
+                "tags": "story",
+                "numericFilters": f"created_at_i>{threshold},points>50",
+                "hitsPerPage": "40",
+            },
+            headers={"User-Agent": USER_AGENT},
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        for hit in response.json().get("hits", []):
+            object_id = str(hit.get("objectID") or "")
+            title = (hit.get("title") or "").strip()
+            if not object_id or not title:
+                continue
+            url = hit.get("url") or f"https://news.ycombinator.com/item?id={object_id}"
+            identifier = item_id(url)
+            if identifier in seen_ids:
+                continue
+            seen_ids.add(identifier)
+            published = datetime.fromtimestamp(int(hit.get("created_at_i", 0)), tz=timezone.utc)
+            items.append(
+                make_scored_item(
+                    url=url,
+                    title=title,
+                    source="hn",
+                    published=published,
+                    raw=hit.get("story_text") or hit.get("title") or "",
+                    score=float(hit.get("points") or 0),
+                )
+            )
+    return items
+
+
+def fetch_reddit(since: datetime) -> list[Item]:
+    """抓取 Reddit 当日热帖；被拦截时抛异常由上层跳过。"""
+    items: list[Item] = []
+    for name, url in REDDIT_FEEDS.items():
+        response = requests.get(
+            url,
+            headers={"User-Agent": USER_AGENT},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"{name} 返回 {response.status_code}")
+        try:
+            children = response.json()["data"]["children"]
+        except (ValueError, KeyError) as exc:
+            raise RuntimeError(f"{name} 返回非 JSON") from exc
+        for child in children:
+            data = child.get("data", {})
+            title = (data.get("title") or "").strip()
+            permalink = data.get("permalink") or ""
+            if not title or not permalink:
+                continue
+            published = datetime.fromtimestamp(int(data.get("created_utc", 0)), tz=timezone.utc)
+            if published < since:
+                continue
+            items.append(
+                make_scored_item(
+                    url=f"https://www.reddit.com{permalink}",
+                    title=title,
+                    source="reddit",
+                    published=published,
+                    raw=data.get("selftext") or "",
+                    score=float(data.get("score") or 0),
+                )
+            )
+    return items
+
+
+FETCHERS = {
+    "arxiv": fetch_arxiv,
+    "vendor_blogs": fetch_vendor,
+    "hn": fetch_hn,
+    "reddit": fetch_reddit,
+    "chinese_media": fetch_chinese,
+}
+
+
+# arXiv 周末不更新、厂商博客发布稀疏，用比基准更宽的回看窗口，
+# 避免周一或安静日整组为空；seen.json 保证同一内容不会重复推送。
+SOURCE_LOOKBACK_HOURS = {
+    "arxiv": 96,
+    "vendor_blogs": 168,
+    "chinese_media": 168,
+}
+
+
+def fetch_all(cfg: dict, now: datetime, since: datetime) -> list[Item]:
+    """按配置抓取全部启用的源，单源失败只记日志。"""
+    items: list[Item] = []
+    base_hours = int(cfg["digest"]["lookback_hours"])
+    for key, fetcher in FETCHERS.items():
+        if not cfg["sources"].get(key, True):
+            continue
+        hours = max(base_hours, SOURCE_LOOKBACK_HOURS.get(key, base_hours))
+        source_since = now - timedelta(hours=hours)
+        try:
+            found = fetcher(source_since)
+            log.info("[%s] 回看 %dh，获取 %d 条", key, hours, len(found))
+            items.extend(found)
+        except Exception as exc:
+            log.warning("[%s] 失败：%s", key, exc)
+    return items
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 

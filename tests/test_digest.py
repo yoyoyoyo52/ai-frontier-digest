@@ -212,3 +212,33 @@ def test_prune_seen_drops_old_entries():
     seen = {"old": "2026-09-01", "new": "2026-10-25"}
     pruned = prune_seen(seen, now, days=30)
     assert pruned == {"new": "2026-10-25"}
+
+
+import feedparser
+
+from digest import parse_entry_date, strip_html
+
+ATOM_SAMPLE = """<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <title>Test entry</title>
+    <link href="https://example.com/atom-entry"/>
+    <updated>2026-10-25T10:30:00Z</updated>
+    <summary>Some &lt;b&gt;rich&lt;/b&gt; text</summary>
+  </entry>
+</feed>"""
+
+
+def test_parse_entry_date_reads_iso_updated():
+    """Atom 的 ISO 时间能被解析为 UTC datetime。"""
+    feed = feedparser.parse(ATOM_SAMPLE)
+    parsed = parse_entry_date(feed.entries[0])
+    assert parsed is not None
+    assert parsed.year == 2026
+    assert parsed.hour == 10
+    assert parsed.tzinfo is not None
+
+
+def test_strip_html_removes_tags_and_unescapes():
+    """摘要里的 HTML 标签被剥离并反转义。"""
+    assert strip_html("Some <b>rich</b> &amp; text") == "Some rich & text"
