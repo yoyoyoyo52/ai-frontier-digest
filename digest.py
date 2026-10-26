@@ -100,6 +100,50 @@ def dedupe_items(items: list[Item]) -> list[Item]:
     return kept
 
 
+SOURCE_GROUP = {
+    "arxiv": "arxiv",
+    "vendor": "vendor",
+    "hn": "community",
+    "reddit": "community",
+    "chinese": "chinese",
+}
+
+
+def select_items(items: list[Item], quota: dict, max_items: int) -> list[Item]:
+    """按分组配额选取条目，不足的配额顺延给有剩余的组。"""
+    buckets: dict[str, list[Item]] = {group: [] for group in quota}
+    for item in items:
+        group = SOURCE_GROUP.get(item.source)
+        if group in buckets:
+            buckets[group].append(item)
+
+    for bucket in buckets.values():
+        bucket.sort(key=lambda i: (i.score, i.published), reverse=True)
+
+    selected: list[Item] = []
+    used = {group: 0 for group in buckets}
+    for group, limit in quota.items():
+        take = buckets[group][: int(limit)]
+        selected.extend(take)
+        used[group] = len(take)
+
+    remaining = int(max_items) - len(selected)
+    while remaining > 0:
+        leftovers = [
+            (group, len(buckets[group]) - used[group])
+            for group in buckets
+            if len(buckets[group]) > used[group]
+        ]
+        if not leftovers:
+            break
+        group, _ = max(leftovers, key=lambda pair: pair[1])
+        selected.append(buckets[group][used[group]])
+        used[group] += 1
+        remaining -= 1
+
+    return selected[: int(max_items)]
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 

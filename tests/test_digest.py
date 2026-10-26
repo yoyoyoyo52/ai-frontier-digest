@@ -138,3 +138,54 @@ def test_dedupe_keeps_distinct_titles():
     a = make_item("Claude gets a new context window", 80, "https://example.com/a")
     b = make_item("Llama 5 benchmark results", 60, "https://example.com/b")
     assert len(dedupe_items([a, b])) == 2
+
+
+from digest import select_items
+
+QUOTA = {"arxiv": 2, "vendor": 1, "community": 1, "chinese": 1}
+
+
+def test_select_respects_quota():
+    """各组都有足够候选时，按配额分配。"""
+    items = []
+    for source_name, count in (("arxiv", 4), ("vendor", 3), ("hn", 3), ("chinese", 3)):
+        for n in range(count):
+            item = make_item(
+                f"{source_name} title {n}", 50 + n, f"https://example.com/{source_name}{n}"
+            )
+            item.source = source_name
+            items.append(item)
+
+    selected = select_items(items, QUOTA, max_items=5)
+
+    counts: dict[str, int] = {}
+    for item in selected:
+        counts[item.source] = counts.get(item.source, 0) + 1
+    assert counts == {"arxiv": 2, "vendor": 1, "hn": 1, "chinese": 1}
+
+
+def test_select_redistributes_unfilled_quota():
+    """某分组不足时，空出的名额顺延给有剩余的组。"""
+    arxiv = [make_item(f"arxiv {n}", 60 + n, f"https://example.com/a{n}") for n in range(1)]
+    community = [
+        make_item(f"community {n}", 80 + n, f"https://example.com/c{n}") for n in range(5)
+    ]
+    for item in arxiv:
+        item.source = "arxiv"
+    for item in community:
+        item.source = "hn"
+
+    selected = select_items(arxiv + community, QUOTA, max_items=5)
+
+    assert len(selected) == 5
+    assert sum(1 for item in selected if item.source == "arxiv") == 1
+
+
+def test_select_never_exceeds_max_items():
+    """可用条目多于 max_items 时只取上限数量。"""
+    items = [make_item(f"item {n}", n, f"https://example.com/i{n}") for n in range(20)]
+    for item in items:
+        item.source = "vendor"
+    selected = select_items(items, QUOTA, max_items=4)
+    assert len(selected) == 4
+    assert min(item.score for item in selected) >= 16
