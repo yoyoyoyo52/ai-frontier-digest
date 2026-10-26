@@ -532,6 +532,106 @@ def summarize_items(items: list[Item], cfg: dict) -> tuple[dict[str, dict], bool
     return {row["id"]: row for row in parsed["items"]}, False
 
 
+SECTION_ORDER = (
+    ("arxiv", "arXiv 论文"),
+    ("vendor", "厂商动态"),
+    ("community", "社区热议"),
+    ("chinese", "中文媒体"),
+)
+
+
+def group_items(items: list[Item]) -> dict[str, list[Item]]:
+    """按展示分组归类，保持组内原顺序。"""
+    groups: dict[str, list[Item]] = {group: [] for group, _ in SECTION_ORDER}
+    for item in items:
+        group = SOURCE_GROUP.get(item.source)
+        if group in groups:
+            groups[group].append(item)
+    return groups
+
+
+def item_fields(item: Item, summaries: dict[str, dict]) -> tuple[str, str, str]:
+    """返回 (标题, 摘要, 为什么重要)，无摘要时回退原文。"""
+    row = summaries.get(item.id)
+    if row:
+        return row["cn_title"], row["summary"], row["why"]
+    fallback = item.raw or "（暂无摘要，请点开原文）"
+    return item.title, fallback, ""
+
+
+def render_html(
+    items: list[Item], summaries: dict[str, dict], date_str: str, degraded: bool
+) -> str:
+    """渲染 HTML 邮件正文。"""
+    parts = [
+        "<!doctype html><html><head><meta charset='utf-8'>",
+        "<style>",
+        "body{font-family:-apple-system,'Segoe UI',sans-serif;max-width:720px;margin:0 auto;",
+        "padding:24px;color:#1a1a1a;line-height:1.65}",
+        "h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 12px;",
+        "border-bottom:1px solid #e5e5e5;padding-bottom:6px}",
+        ".item{margin:0 0 20px}.item h3{font-size:15px;margin:0 0 6px}",
+        ".item p{margin:0 0 6px;font-size:14px}",
+        ".why{color:#0b6b3a;font-size:13px}.meta{color:#888;font-size:12px}",
+        ".banner{background:#fff4e5;border:1px solid #ffd8a8;padding:10px 12px;",
+        "font-size:13px;margin:16px 0}",
+        "a{color:#0b5fff;text-decoration:none}",
+        "</style></head><body>",
+        f"<h1>AI 前沿日报</h1><p class='meta'>{escape(date_str)} · 共 {len(items)} 条</p>",
+    ]
+    if degraded:
+        parts.append("<div class='banner'>本次摘要服务不可用，以下为原文标题与摘录。</div>")
+
+    groups = group_items(items)
+    for group, label in SECTION_ORDER:
+        bucket = groups[group]
+        if not bucket:
+            continue
+        parts.append(f"<h2>{escape(label)}</h2>")
+        for item in bucket:
+            title, summary, why = item_fields(item, summaries)
+            published = item.published.astimezone().strftime("%m-%d %H:%M")
+            parts.append("<div class='item'>")
+            parts.append(
+                f"<h3><a href='{escape(item.url)}'>{escape(title)}</a></h3>"
+            )
+            parts.append(f"<p>{escape(summary)}</p>")
+            if why:
+                parts.append(f"<p class='why'>为什么重要：{escape(why)}</p>")
+            parts.append(
+                f"<p class='meta'>{escape(item.source)} · {escape(published)}</p>"
+            )
+            parts.append("</div>")
+
+    parts.append("</body></html>")
+    return "".join(parts)
+
+
+def render_text(
+    items: list[Item], summaries: dict[str, dict], date_str: str, degraded: bool
+) -> str:
+    """渲染纯文本备份正文。"""
+    lines = [f"AI 前沿日报 {date_str} · 共 {len(items)} 条", ""]
+    if degraded:
+        lines.extend(["本次摘要服务不可用，以下为原文标题与摘录。", ""])
+
+    groups = group_items(items)
+    for group, label in SECTION_ORDER:
+        bucket = groups[group]
+        if not bucket:
+            continue
+        lines.append(f"== {label} ==")
+        for item in bucket:
+            title, summary, why = item_fields(item, summaries)
+            lines.append(f"- {title}")
+            lines.append(f"  {summary}")
+            if why:
+                lines.append(f"  为什么重要：{why}")
+            lines.append(f"  {item.url}")
+            lines.append("")
+    return "\n".join(lines)
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 

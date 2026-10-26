@@ -279,3 +279,38 @@ def test_validate_summary_rejects_empty_field():
 def test_validate_summary_rejects_non_dict():
     """顶层不是对象判失败。"""
     assert validate_summary([], {"a"}) is False
+
+
+from digest import render_html, render_text
+
+
+def test_render_html_escapes_content():
+    """标题和摘要中的 HTML 被转义。"""
+    item = make_item("<script>alert(1)</script>", 80, "https://example.com/x")
+    html_out = render_html([item], {}, "2026-10-26", degraded=False)
+    assert "<script>" not in html_out
+    assert "&lt;script&gt;" in html_out
+
+
+def test_render_html_uses_summary_when_available():
+    """有摘要时渲染中文标题与 why。"""
+    item = make_item("Original title", 80, "https://example.com/x")
+    summaries = {item.id: {"cn_title": "中文标题", "summary": "摘要正文", "why": "值得关注"}}
+    html_out = render_html([item], summaries, "2026-10-26", degraded=False)
+    assert "中文标题" in html_out
+    assert "摘要正文" in html_out
+    assert "值得关注" in html_out
+
+
+def test_render_html_marks_degraded():
+    """降级时邮件顶部有提示。"""
+    item = make_item("t", 80, "https://example.com/x")
+    html_out = render_html([item], {}, "2026-10-26", degraded=True)
+    assert "摘要服务不可用" in html_out
+
+
+def test_render_text_contains_links():
+    """纯文本版本包含标题与 URL。"""
+    item = make_item("t", 80, "https://example.com/x")
+    text = render_text([item], {}, "2026-10-26", degraded=False)
+    assert "https://example.com/x" in text
