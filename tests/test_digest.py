@@ -104,3 +104,37 @@ def test_item_holds_datetime():
         score=60.0,
     )
     assert item.published.year == 2026
+
+
+from digest import dedupe_items
+
+
+def make_item(title: str, score: float, url: str = "https://example.com/x") -> Item:
+    """构造测试用 Item。"""
+    return Item(
+        id=item_id(url),
+        title=title,
+        url=url,
+        source="hn",
+        published=datetime(2026, 10, 26, tzinfo=timezone.utc),
+        raw="raw",
+        score=score,
+    )
+
+
+def test_dedupe_keeps_higher_score():
+    """近似标题只保留分数高的一条。"""
+    low = make_item("OpenAI releases GPT-5.5 model", 50, "https://example.com/a")
+    high = make_item("OpenAI releases GPT-5.5 model!", 90, "https://example.com/b")
+    other = make_item("Meta open-sources new vision model", 70, "https://example.com/c")
+
+    kept = dedupe_items([low, high, other])
+
+    assert [item.score for item in kept] == [90, 70]
+
+
+def test_dedupe_keeps_distinct_titles():
+    """不相似的标题全部保留。"""
+    a = make_item("Claude gets a new context window", 80, "https://example.com/a")
+    b = make_item("Llama 5 benchmark results", 60, "https://example.com/b")
+    assert len(dedupe_items([a, b])) == 2

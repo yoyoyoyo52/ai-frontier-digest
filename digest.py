@@ -77,6 +77,29 @@ def title_key(title: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
+TITLE_SIMILARITY_THRESHOLD = 0.9
+
+
+def titles_are_similar(left: str, right: str) -> bool:
+    """两个标题归一化后相似度是否超过阈值。"""
+    a, b = title_key(left), title_key(right)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    return SequenceMatcher(None, a, b).ratio() > TITLE_SIMILARITY_THRESHOLD
+
+
+def dedupe_items(items: list[Item]) -> list[Item]:
+    """按分数从高到低保留标题不重复的条目。"""
+    kept: list[Item] = []
+    for item in sorted(items, key=lambda i: (i.score, i.published), reverse=True):
+        if any(titles_are_similar(item.title, other.title) for other in kept):
+            continue
+        kept.append(item)
+    return kept
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 
