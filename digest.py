@@ -632,8 +632,43 @@ def render_text(
     return "\n".join(lines)
 
 
+def send_mail(
+    cfg: dict, subject: str, html_body: str, text_body: str, attempts: int = 3, delay: int = 5
+) -> None:
+    """通过 QQ 邮箱 SSL 发送 HTML 邮件，失败重试。"""
+    mail_cfg = cfg["mail"]
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = mail_cfg["user"]
+    message["To"] = mail_cfg["to"]
+    message.set_content(text_body)
+    message.add_alternative(html_body, subtype="html")
+
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with smtplib.SMTP_SSL(
+                mail_cfg["smtp_host"], int(mail_cfg["smtp_port"]), timeout=20
+            ) as client:
+                client.login(mail_cfg["user"], mail_cfg["password"])
+                client.send_message(message)
+            log.info("邮件已发送：%s", subject)
+            return
+        except Exception as exc:
+            last_error = exc
+            log.warning("第 %d 次发送失败：%s", attempt, exc)
+            if attempt < attempts:
+                time.sleep(delay)
+
+    raise MailError(f"邮件发送失败：{last_error}")
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
+
+
+class MailError(Exception):
+    """邮件发送失败。"""
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:

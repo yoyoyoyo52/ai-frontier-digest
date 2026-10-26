@@ -314,3 +314,69 @@ def test_render_text_contains_links():
     item = make_item("t", 80, "https://example.com/x")
     text = render_text([item], {}, "2026-10-26", degraded=False)
     assert "https://example.com/x" in text
+
+
+import digest
+
+
+class FakeSMTP:
+    """记录调用并在前 N 次抛异常的假 SMTP 客户端。"""
+
+    attempts = 0
+    fail_times = 0
+
+    def __init__(self, host, port, timeout=20):
+        self.host = host
+        self.port = port
+
+    def __enter__(self):
+        FakeSMTP.attempts += 1
+        if FakeSMTP.attempts <= FakeSMTP.fail_times:
+            raise OSError("boom")
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def login(self, user, password):
+        return None
+
+    def send_message(self, message):
+        return None
+
+
+def test_send_mail_retries_then_raises(monkeypatch):
+    """连续失败达到上限后抛 MailError，并记录尝试次数。"""
+    FakeSMTP.attempts = 0
+    FakeSMTP.fail_times = 99
+    monkeypatch.setattr(digest.smtplib, "SMTP_SSL", FakeSMTP)
+    cfg = {
+        "mail": {
+            "smtp_host": "smtp.qq.com",
+            "smtp_port": 465,
+            "user": "a@qq.com",
+            "password": "code",
+            "to": "a@qq.com",
+        }
+    }
+    with pytest.raises(digest.MailError):
+        digest.send_mail(cfg, "subject", "<p>x</p>", "x", attempts=2, delay=0)
+    assert FakeSMTP.attempts == 2
+
+
+def test_send_mail_succeeds_after_retry(monkeypatch):
+    """第一次失败、第二次成功时不抛异常。"""
+    FakeSMTP.attempts = 0
+    FakeSMTP.fail_times = 1
+    monkeypatch.setattr(digest.smtplib, "SMTP_SSL", FakeSMTP)
+    cfg = {
+        "mail": {
+            "smtp_host": "smtp.qq.com",
+            "smtp_port": 465,
+            "user": "a@qq.com",
+            "password": "code",
+            "to": "a@qq.com",
+        }
+    }
+    digest.send_mail(cfg, "subject", "<p>x</p>", "x", attempts=2, delay=0)
+    assert FakeSMTP.attempts == 2
