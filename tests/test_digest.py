@@ -380,3 +380,9 @@ def test_send_mail_succeeds_after_retry(monkeypatch):
     }
     digest.send_mail(cfg, "subject", "<p>x</p>", "x", attempts=2, delay=0)
     assert FakeSMTP.attempts == 2
+
+
+def test_main_guard_is_last_statement():
+    """入口守卫必须在文件末尾，否则脚本模式会早于定义执行 main。"""
+    source = Path(digest.__file__).read_text(encoding="utf-8").rstrip()
+    assert source.endswith("sys.exit(main())")

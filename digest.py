@@ -745,10 +745,6 @@ def main(argv: list[str] | None = None) -> int:
     return run(cfg, args.dry_run)
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 
@@ -787,3 +783,7 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
         raise ConfigError("quota 四项之和必须等于 max_items")
 
     return cfg
+
+
+if __name__ == "__main__":
+    sys.exit(main())
