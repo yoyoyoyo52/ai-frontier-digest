@@ -679,10 +679,12 @@ def setup_logging() -> None:
         LOG_DIR / f"{datetime.now():%Y-%m-%d}.log", encoding="utf-8"
     )
     file_handler.setFormatter(formatter)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
     log.addHandler(file_handler)
-    log.addHandler(stream_handler)
+    # pythonw.exe 下 sys.stderr 为 None，跳过终端输出避免日志报错
+    if sys.stderr is not None:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+        log.addHandler(stream_handler)
 
 
 def run(cfg: dict, dry_run: bool) -> int:
