@@ -1,0 +1,7 @@
+config.toml
+seen.json
+logs/
+preview.html
+__pycache__/
+.pytest_cache/
+.venv/
