@@ -189,3 +189,26 @@ def test_select_never_exceeds_max_items():
     selected = select_items(items, QUOTA, max_items=4)
     assert len(selected) == 4
     assert min(item.score for item in selected) >= 16
+
+
+from digest import load_seen, prune_seen, save_seen
+
+
+def test_seen_roundtrip(tmp_path):
+    """写入后能原样读回。"""
+    path = tmp_path / "seen.json"
+    save_seen({"abc": "2026-10-26"}, path)
+    assert load_seen(path) == {"abc": "2026-10-26"}
+
+
+def test_load_seen_missing_file_returns_empty(tmp_path):
+    """文件不存在时返回空字典，不抛异常。"""
+    assert load_seen(tmp_path / "nope.json") == {}
+
+
+def test_prune_seen_drops_old_entries():
+    """超过 30 天的记录被清理。"""
+    now = datetime(2026, 10, 26, tzinfo=timezone.utc)
+    seen = {"old": "2026-09-01", "new": "2026-10-25"}
+    pruned = prune_seen(seen, now, days=30)
+    assert pruned == {"new": "2026-10-25"}

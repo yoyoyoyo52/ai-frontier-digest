@@ -144,6 +144,36 @@ def select_items(items: list[Item], quota: dict, max_items: int) -> list[Item]:
     return selected[: int(max_items)]
 
 
+SEEN_RETENTION_DAYS = 30
+
+
+def load_seen(path: Path = SEEN_PATH) -> dict[str, str]:
+    """读取已推送记录；文件缺失或损坏时返回空字典。"""
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        log.warning("seen.json 无法读取，按空记录处理")
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_seen(seen: dict[str, str], path: Path = SEEN_PATH) -> None:
+    """原子写入已推送记录。"""
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(seen, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+def prune_seen(
+    seen: dict[str, str], now: datetime, days: int = SEEN_RETENTION_DAYS
+) -> dict[str, str]:
+    """删除超过保留期的记录。"""
+    cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+    return {key: value for key, value in seen.items() if value >= cutoff}
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 
