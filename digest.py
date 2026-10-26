@@ -663,6 +663,92 @@ def send_mail(
     raise MailError(f"邮件发送失败：{last_error}")
 
 
+def now_utc() -> datetime:
+    """当前 UTC 时间。"""
+    return datetime.now(timezone.utc)
+
+
+def setup_logging() -> None:
+    """同时写文件与终端。"""
+    LOG_DIR.mkdir(exist_ok=True)
+    log.setLevel(logging.INFO)
+    if log.handlers:
+        return
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    file_handler = logging.FileHandler(
+        LOG_DIR / f"{datetime.now():%Y-%m-%d}.log", encoding="utf-8"
+    )
+    file_handler.setFormatter(formatter)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+    log.addHandler(file_handler)
+    log.addHandler(stream_handler)
+
+
+def run(cfg: dict, dry_run: bool) -> int:
+    """执行一次完整流程，返回退出码。"""
+    now = now_utc()
+    since = now - timedelta(hours=int(cfg["digest"]["lookback_hours"]))
+    seen = load_seen()
+
+    candidates = fetch_all(cfg, now, since)
+    fresh = [item for item in candidates if item.id not in seen]
+    unique = dedupe_items(fresh)
+    selected = select_items(
+        unique, cfg["digest"]["quota"], int(cfg["digest"]["max_items"])
+    )
+    log.info("候选 %d，去重后 %d，选中 %d", len(candidates), len(unique), len(selected))
+
+    if not selected:
+        log.error("没有可发送的内容")
+        return 1
+
+    summaries, degraded = summarize_items(selected, cfg)
+    today = datetime.now().astimezone().strftime("%Y-%m-%d")
+    html_body = render_html(selected, summaries, today, degraded)
+    text_body = render_text(selected, summaries, today, degraded)
+
+    if dry_run:
+        PREVIEW_PATH.write_text(html_body, encoding="utf-8")
+        print(f"已生成预览：{PREVIEW_PATH}")
+        return 0
+
+    subject = f"AI 前沿日报 · {today} · {len(selected)} 条"
+    try:
+        send_mail(cfg, subject, html_body, text_body)
+    except MailError as exc:
+        log.error("%s", exc)
+        return 2
+
+    updated = dict(seen)
+    for item in selected:
+        updated[item.id] = today
+    save_seen(prune_seen(updated, now))
+    log.info("发送成功，%d 条", len(selected))
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI 入口。"""
+    parser = argparse.ArgumentParser(description="AI 前沿日报")
+    parser.add_argument("--dry-run", action="store_true", help="只生成 preview.html，不发信")
+    args = parser.parse_args(argv)
+
+    setup_logging()
+    try:
+        cfg = load_config()
+    except ConfigError as exc:
+        log.error("配置错误：%s", exc)
+        print(f"配置错误：{exc}", file=sys.stderr)
+        return 3
+
+    return run(cfg, args.dry_run)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 
