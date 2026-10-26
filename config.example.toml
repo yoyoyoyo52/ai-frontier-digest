@@ -1,0 +1,24 @@
+[mail]
+smtp_host = "smtp.qq.com"
+smtp_port = 465
+user = "你的QQ邮箱@qq.com"
+password = "SMTP授权码"
+to = "你的QQ邮箱@qq.com"
+
+[llm]
+base_url = "https://api.deepseek.com"
+model = "deepseek-chat"
+api_key = "sk-替换成你的DeepSeekKey"
+
+[digest]
+send_at = "08:00"
+max_items = 25
+lookback_hours = 24
+quota = { arxiv = 6, vendor = 6, community = 7, chinese = 6 }
+
+[sources]
+arxiv = true
+vendor_blogs = true
+hn = true
+reddit = true
+chinese_media = true
