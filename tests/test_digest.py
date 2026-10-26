@@ -242,3 +242,40 @@ def test_parse_entry_date_reads_iso_updated():
 def test_strip_html_removes_tags_and_unescapes():
     """摘要里的 HTML 标签被剥离并反转义。"""
     assert strip_html("Some <b>rich</b> &amp; text") == "Some rich & text"
+
+
+from digest import validate_summary
+
+
+def test_validate_summary_accepts_complete_payload():
+    """id 集合完全匹配时校验通过。"""
+    payload = {
+        "items": [
+            {"id": "a", "cn_title": "甲", "summary": "乙", "why": "丙"},
+            {"id": "b", "cn_title": "丁", "summary": "戊", "why": "己"},
+        ]
+    }
+    assert validate_summary(payload, {"a", "b"}) is True
+
+
+def test_validate_summary_rejects_missing_id():
+    """缺少任意一条即判失败。"""
+    payload = {"items": [{"id": "a", "cn_title": "甲", "summary": "乙", "why": "丙"}]}
+    assert validate_summary(payload, {"a", "b"}) is False
+
+
+def test_validate_summary_rejects_unknown_id():
+    """出现输入之外的 id 判失败。"""
+    payload = {"items": [{"id": "z", "cn_title": "甲", "summary": "乙", "why": "丙"}]}
+    assert validate_summary(payload, {"a"}) is False
+
+
+def test_validate_summary_rejects_empty_field():
+    """字段为空字符串判失败。"""
+    payload = {"items": [{"id": "a", "cn_title": "", "summary": "乙", "why": "丙"}]}
+    assert validate_summary(payload, {"a"}) is False
+
+
+def test_validate_summary_rejects_non_dict():
+    """顶层不是对象判失败。"""
+    assert validate_summary([], {"a"}) is False

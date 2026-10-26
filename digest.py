@@ -462,6 +462,76 @@ def fetch_all(cfg: dict, now: datetime, since: datetime) -> list[Item]:
     return items
 
 
+SUMMARY_SYSTEM_PROMPT = (
+    "你是 AI 行业分析师。用户会给你一批最近的技术内容条目。"
+    "请为每一条写出中文标题、2-3 句中文摘要、以及一句话说明为什么值得关注。"
+    "只输出 JSON，格式为 {\"items\": [{\"id\": \"...\", \"cn_title\": \"...\", "
+    "\"summary\": \"...\", \"why\": \"...\"}]}。id 必须与输入一致，不得增删条目。"
+)
+
+
+def validate_summary(payload, expected_ids: set[str]) -> bool:
+    """校验模型返回：必须是对象、条目齐全、字段非空、id 不重复。"""
+    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
+        return False
+    seen: set[str] = set()
+    for row in payload["items"]:
+        if not isinstance(row, dict):
+            return False
+        for key in ("id", "cn_title", "summary", "why"):
+            value = row.get(key)
+            if not isinstance(value, str) or not value.strip():
+                return False
+        if row["id"] not in expected_ids or row["id"] in seen:
+            return False
+        seen.add(row["id"])
+    return seen == expected_ids
+
+
+def summarize_items(items: list[Item], cfg: dict) -> tuple[dict[str, dict], bool]:
+    """调用 DeepSeek 生成中文摘要，失败时返回空映射并标记降级。"""
+    if not items:
+        return {}, False
+
+    payload = [
+        {"id": item.id, "title": item.title, "source": item.source, "raw": item.raw}
+        for item in items
+    ]
+    body = {
+        "model": cfg["llm"]["model"],
+        "temperature": 0.3,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": json.dumps(payload, ensure_ascii=False),
+            },
+        ],
+    }
+    url = cfg["llm"]["base_url"].rstrip("/") + "/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {cfg['llm']['api_key']}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = requests.post(url, json=body, headers=headers, timeout=60)
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+    except Exception as exc:
+        log.warning("摘要生成失败，降级为原文摘录：%s", exc)
+        return {}, True
+
+    expected = {item.id for item in items}
+    if not validate_summary(parsed, expected):
+        log.warning("摘要返回不合契约，降级为原文摘录")
+        return {}, True
+
+    return {row["id"]: row for row in parsed["items"]}, False
+
+
 class ConfigError(Exception):
     """配置缺失或取值非法。"""
 
