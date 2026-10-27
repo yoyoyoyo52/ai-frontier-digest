@@ -58,11 +58,20 @@ where python
 schtasks /create /tn "AI Frontier Digest" /tr "\"<python.exe>\" \"C:\Users\74159\ai-frontier-digest\digest.py\"" /sc daily /st 08:00
 ```
 
-检查与删除：
+已启用失败重试：任务失败（非 0 退出码）后每 10 分钟重跑一次，最多 3 次，
+用于覆盖开机后网络/代理尚未就绪的情况。查看、修改与删除：
 
 ```bash
-schtasks /query /tn "AI Frontier Digest"
+schtasks /query /tn "AI Frontier Digest" /v
 schtasks /delete /tn "AI Frontier Digest" /f
+```
+
+```powershell
+# 修改重试次数与间隔
+$t = Get-ScheduledTask -TaskName "AI Frontier Digest"
+$t.Settings.RestartCount = 3
+$t.Settings.RestartInterval = "PT10M"
+Set-ScheduledTask -TaskName "AI Frontier Digest" -Settings $t.Settings
 ```
 
 ## 排障

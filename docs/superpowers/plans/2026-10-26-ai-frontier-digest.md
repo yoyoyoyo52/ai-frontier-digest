@@ -34,7 +34,7 @@
 - Create: `tests/test_digest.py`
 - Create: `requirements.txt`
 
-- [ ] **Step 1: 安装依赖**
+- [x] **Step 1: 安装依赖**
 
 Run:
 ```bash
@@ -44,7 +44,7 @@ python -c "import requests, feedparser, pytest; print('ok')"
 ```
 Expected: `ok`
 
-- [ ] **Step 2: 写依赖清单**
+- [x] **Step 2: 写依赖清单**
 
 Create `requirements.txt`:
 ```
@@ -53,7 +53,7 @@ feedparser>=6.0
 pytest>=8.0
 ```
 
-- [ ] **Step 3: 写失败的配置测试**
+- [x] **Step 3: 写失败的配置测试**
 
 Create `tests/test_digest.py`:
 ```python
@@ -122,12 +122,12 @@ def test_config_rejects_missing_section(tmp_path):
         load_config(write_config(tmp_path, bad))
 ```
 
-- [ ] **Step 4: 运行测试确认失败**
+- [x] **Step 4: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ModuleNotFoundError: No module named 'digest'`
 
-- [ ] **Step 5: 写最小实现**
+- [x] **Step 5: 写最小实现**
 
 Create `digest.py`:
 ```python
@@ -194,12 +194,12 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
     return cfg
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 3 passed
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py requirements.txt
@@ -214,7 +214,7 @@ git commit -m "feat: add config loader with validation"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -261,12 +261,12 @@ def test_item_holds_datetime():
     assert item.published.year == 2026
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ImportError: cannot import name 'Item'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 In `digest.py`, add imports (replace the existing import block's stdlib section):
 ```python
@@ -336,12 +336,12 @@ def title_key(title: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 8 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -356,7 +356,7 @@ git commit -m "feat: add item model and url normalization"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -394,12 +394,12 @@ def test_dedupe_keeps_distinct_titles():
     assert len(dedupe_items([a, b])) == 2
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ImportError: cannot import name 'dedupe_items'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 Add to `digest.py`:
 ```python
@@ -426,12 +426,12 @@ def dedupe_items(items: list[Item]) -> list[Item]:
     return kept
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 10 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -446,7 +446,7 @@ git commit -m "feat: dedupe items by title similarity"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -492,12 +492,12 @@ def test_select_never_exceeds_max_items():
     assert min(item.score for item in selected) >= 16
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ImportError: cannot import name 'select_items'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 Add to `digest.py`:
 ```python
@@ -545,12 +545,12 @@ def select_items(items: list[Item], quota: dict, max_items: int) -> list[Item]:
     return selected[: int(max_items)]
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 13 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -565,7 +565,7 @@ git commit -m "feat: select items by source quota with redistribution"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -592,12 +592,12 @@ def test_prune_seen_drops_old_entries():
     assert pruned == {"new": "2026-10-25"}
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ImportError: cannot import name 'load_seen'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 Add to `digest.py`:
 ```python
@@ -631,12 +631,12 @@ def prune_seen(
     return {key: value for key, value in seen.items() if value >= cutoff}
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 16 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -651,7 +651,7 @@ git commit -m "feat: persist and prune seen ids"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -685,12 +685,12 @@ def test_strip_html_removes_tags_and_unescapes():
     assert strip_html("Some <b>rich</b> &amp; text") == "Some rich & text"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ImportError: cannot import name 'parse_entry_date'`
 
-- [ ] **Step 3: 写解析与抓取实现**
+- [x] **Step 3: 写解析与抓取实现**
 
 Add to `digest.py`:
 ```python
@@ -971,12 +971,12 @@ def fetch_all(cfg: dict, since: datetime) -> list[Item]:
     return items
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 18 passed
 
-- [ ] **Step 5: 实测所有 feed 端点（网络）**
+- [x] **Step 5: 实测所有 feed 端点（网络）**
 
 Run:
 ```bash
@@ -995,7 +995,7 @@ PY
 ```
 Expected: 每个源打印 status 与 entries。**对 entries=0 或 status 非 200 的源，从 `VENDOR_FEEDS` / `CHINESE_FEEDS` 中删除该行并重跑一次**，确保剩下的都是可用源。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -1010,7 +1010,7 @@ git commit -m "feat: fetch arxiv, vendor rss, hn, reddit and chinese media"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -1051,12 +1051,12 @@ def test_validate_summary_rejects_non_dict():
     assert validate_summary([], {"a"}) is False
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ImportError: cannot import name 'validate_summary'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 Add to `digest.py`:
 ```python
@@ -1130,12 +1130,12 @@ def summarize_items(items: list[Item], cfg: dict) -> tuple[dict[str, dict], bool
     return {row["id"]: row for row in parsed["items"]}, False
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 23 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -1150,7 +1150,7 @@ git commit -m "feat: summarize with deepseek and degrade gracefully"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -1189,12 +1189,12 @@ def test_render_text_contains_links():
     assert "https://example.com/x" in text
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`ImportError: cannot import name 'render_html'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 Add to `digest.py`:
 ```python
@@ -1298,12 +1298,12 @@ def render_text(
     return "\n".join(lines)
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 27 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -1318,7 +1318,7 @@ git commit -m "feat: render html and text digests"
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -1388,12 +1388,12 @@ def test_send_mail_succeeds_after_retry(monkeypatch):
     assert FakeSMTP.attempts == 2
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: FAIL，`AttributeError: module 'digest' has no attribute 'MailError'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 Add to `digest.py` (after `ConfigError`):
 ```python
@@ -1434,12 +1434,12 @@ def send_mail(
     raise MailError(f"邮件发送失败：{last_error}")
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 29 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -1453,7 +1453,7 @@ git commit -m "feat: send html mail with retry"
 **Files:**
 - Modify: `digest.py`
 
-- [ ] **Step 1: 写主流程实现**
+- [x] **Step 1: 写主流程实现**
 
 Add to the end of `digest.py`:
 ```python
@@ -1543,17 +1543,17 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 2: 运行全部测试**
+- [x] **Step 2: 运行全部测试**
 
 Run: `python -m pytest tests/test_digest.py -v`
 Expected: 29 passed
 
-- [ ] **Step 3: 检查模块可导入且 CLI 有帮助**
+- [x] **Step 3: 检查模块可导入且 CLI 有帮助**
 
 Run: `python digest.py --help`
 Expected: 打印用法，包含 `--dry-run`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add digest.py
@@ -1568,7 +1568,7 @@ git commit -m "feat: wire up main flow, logging and cli"
 - Create: `config.example.toml`
 - Create: `README.md`
 
-- [ ] **Step 1: 写配置模板**
+- [x] **Step 1: 写配置模板**
 
 Create `config.example.toml`:
 ```toml
@@ -1598,7 +1598,7 @@ reddit = true
 chinese_media = true
 ```
 
-- [ ] **Step 2: 写 README**
+- [x] **Step 2: 写 README**
 
 Create `README.md`:
 ```markdown
@@ -1652,7 +1652,7 @@ Create `README.md`:
 - 想清空去重记录：删除 `seen.json`
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add config.example.toml README.md
@@ -1666,31 +1666,31 @@ git commit -m "docs: add config template and readme"
 **Files:**
 - Create: `config.toml`（用户凭据，不入库）
 
-- [ ] **Step 1: 让用户填写凭据**
+- [x] **Step 1: 让用户填写凭据**
 
 把 `config.example.toml` 复制为 `config.toml`，填入 QQ 邮箱授权码与 DeepSeek key。
 
-- [ ] **Step 2: 真实抓取但不发信**
+- [x] **Step 2: 真实抓取但不发信**
 
 Run: `python digest.py --dry-run`
 Expected: 输出 `已生成预览：...preview.html`，退出码 0。打开 preview.html 检查：四个小节有内容、链接可点、无乱码。
 
-- [ ] **Step 3: 检查日志**
+- [x] **Step 3: 检查日志**
 
 Run: `type logs\%DATE:~0,4%-%DATE:~5,2%-%DATE:~8,2%.log` 或在文件管理器打开 `logs\`。
 Expected: 每个启用源一行 `[源名] 获取 N 条`，失败源有 `失败：` 行。
 
-- [ ] **Step 4: 真实发送一次**
+- [x] **Step 4: 真实发送一次**
 
 Run: `python digest.py`
 Expected: 退出码 0，收件箱收到主题为 `AI 前沿日报 · YYYY-MM-DD · N 条` 的邮件。
 
-- [ ] **Step 5: 再跑一次验证去重**
+- [x] **Step 5: 再跑一次验证去重**
 
 Run: `python digest.py --dry-run`
 Expected: 日志显示 `去重后` 条数明显减少（因为 seen.json 已记录上一批）。
 
-- [ ] **Step 6: 安装计划任务**
+- [x] **Step 6: 安装计划任务**
 
 Run:
 ```bash
@@ -1700,7 +1700,7 @@ schtasks /query /tn "AI Frontier Digest"
 ```
 Expected: 查询结果显示任务存在、下次运行时间为次日 08:00。
 
-- [ ] **Step 7: 提交（如实现期改过代码）**
+- [x] **Step 7: 提交（如实现期改过代码）**
 
 ```bash
 git add -A
