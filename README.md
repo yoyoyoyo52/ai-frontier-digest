@@ -45,7 +45,33 @@ python digest.py              # 真实抓取并发送
 
 单源失败只写日志，不影响整封信；`seen.json` 保证同一内容不会重复推送。
 
-## 定时任务
+## GitHub Actions（电脑关机也能跑）
+
+把仓库推送到 GitHub 后，日报在 GitHub 的服务器上运行，不依赖本机开机。
+
+1. 创建一个 **私有仓库**，把本项目推上去，并确认它是默认分支（`master` 或 `main`）。
+2. 在仓库 **Settings → Secrets and variables → Actions** 添加 4 个 secret：
+   - `MAIL_USER`：QQ 邮箱地址
+   - `MAIL_PASSWORD`：QQ 邮箱 SMTP 授权码
+   - `MAIL_TO`：收件邮箱（可同 `MAIL_USER`）
+   - `DEEPSEEK_API_KEY`：DeepSeek API key
+3. 打开 **Actions → AI Frontier Digest → Run workflow** 手动跑一次，确认收到邮件。
+4. 云端验证成功后，停用本机任务，避免重复发送：
+
+```bash
+schtasks /change /tn "AI Frontier Digest" /disable
+```
+
+说明：
+
+- 定时为 UTC `00:00`，即北京时间 08:00；GitHub 可能延迟几分钟到十几分钟。
+- 私有仓库每月 2000 分钟免费额度，日报每天约 1–2 分钟，足够。
+- `seen.json` 会在每次发送后由 workflow 自动提交回仓库，用于跨天去重，也让仓库保持活跃（60 天无活动会被停用定时任务）。
+- 运行日志作为 artifact 保留 7 天，在 Actions 运行页面下载。
+- 默认分支若开启分支保护，需要允许 GitHub Actions 推送，或改用 PAT。
+- 本机 `config.toml` 不会上传，云端配置由 Secrets 在运行时生成。
+
+## 本地定时任务（Windows）
 
 先确认 Python 路径：
 
@@ -80,7 +106,7 @@ Set-ScheduledTask -TaskName "AI Frontier Digest" -Settings $t.Settings
 - 日志在 `logs\YYYY-MM-DD.log`，每次运行记录各源回看窗口、抓取数与发送结果
 - 某个源连续失败：在 `config.toml` 的 `[sources]` 里把它设为 `false`
 - Reddit 返回 403 属预期，脚本会跳过该源继续
-- 想清空去重记录：删除 `seen.json`
+- 想清空去重记录：删除 `seen.json`（云端使用时需把删除一起提交）
 - 有代理后想恢复 OpenAI / Anthropic：把地址加回 `digest.py` 的 `VENDOR_FEEDS`
 
 ## 测试

@@ -1,5 +1,4 @@
 config.toml
-seen.json
 logs/
 preview.html
 __pycache__/

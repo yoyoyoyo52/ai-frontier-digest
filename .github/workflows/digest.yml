@@ -1,0 +1,93 @@
+name: AI Frontier Digest
+
+on:
+  schedule:
+    # GitHub Actions 使用 UTC；00:00 UTC = 北京时间 08:00
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-frontier-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write config.toml from secrets
+        env:
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          cat > config.toml <<EOF
+          [mail]
+          smtp_host = "smtp.qq.com"
+          smtp_port = 465
+          user = "${MAIL_USER}"
+          password = "${MAIL_PASSWORD}"
+          to = "${MAIL_TO}"
+
+          [llm]
+          base_url = "https://api.deepseek.com"
+          model = "deepseek-chat"
+          api_key = "${DEEPSEEK_API_KEY}"
+
+          [digest]
+          send_at = "08:00"
+          max_items = 35
+          lookback_hours = 24
+          quota = { arxiv = 6, vendor = 6, community = 7, chinese = 6, github = 10 }
+
+          [sources]
+          arxiv = true
+          vendor_blogs = true
+          hn = true
+          reddit = true
+          chinese_media = true
+          github = true
+          EOF
+
+      - name: Run digest
+        run: python digest.py
+
+      - name: Persist seen.json
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seen.json
+          if git diff --cached --quiet; then
+            echo "seen.json unchanged"
+          else
+            git commit -m "chore: update seen.json"
+            git push
+          fi
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
