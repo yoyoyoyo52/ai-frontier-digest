@@ -12,9 +12,9 @@ api_key = "sk-替换成你的DeepSeekKey"
 
 [digest]
 send_at = "08:00"
-max_items = 25
+max_items = 35
 lookback_hours = 24
-quota = { arxiv = 6, vendor = 6, community = 7, chinese = 6 }
+quota = { arxiv = 6, vendor = 6, community = 7, chinese = 6, github = 10 }
 
 [sources]
 arxiv = true
@@ -22,3 +22,4 @@ vendor_blogs = true
 hn = true
 reddit = true
 chinese_media = true
+github = true

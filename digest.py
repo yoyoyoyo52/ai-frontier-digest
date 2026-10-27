@@ -106,6 +106,7 @@ SOURCE_GROUP = {
     "hn": "community",
     "reddit": "community",
     "chinese": "chinese",
+    "github": "github",
 }
 
 
@@ -390,6 +391,18 @@ def fetch_chinese(since: datetime) -> list[Item]:
     return items
 
 
+def fetch_github(since: datetime) -> list[Item]:
+    """抓取 GitHub Trending 日榜中的 AI 项目。"""
+    response = requests.get(
+        GITHUB_TRENDING_URL, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT
+    )
+    response.raise_for_status()
+    items = parse_github_trending(response.text, now_utc())
+    if not items:
+        log.warning("[github] 页面未解析出 AI 项目")
+    return items
+
+
 def fetch_hn(since: datetime) -> list[Item]:
     """抓取 HN 高分 AI 讨论。"""
     threshold = int(since.timestamp())
@@ -475,6 +488,7 @@ FETCHERS = {
     "hn": fetch_hn,
     "reddit": fetch_reddit,
     "chinese_media": fetch_chinese,
+    "github": fetch_github,
 }
 
 
@@ -484,6 +498,7 @@ SOURCE_LOOKBACK_HOURS = {
     "arxiv": 96,
     "vendor_blogs": 168,
     "chinese_media": 168,
+    "github": 24,
 }
 
 
