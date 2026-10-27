@@ -208,12 +208,55 @@ REDDIT_FEEDS = {
     "MachineLearning": "https://www.reddit.com/r/MachineLearning/top.json?t=day&limit=25",
 }
 
+GITHUB_TRENDING_URL = "https://github.com/trending?since=daily"
+GITHUB_TOP_N = 10
+GITHUB_AI_PATTERN = re.compile(
+    r"(?<![a-z])(ai|llm|gpt|claude|codex|agents?|agentic|chatbot|copilot|mcp|rag|"
+    r"transformer|diffusion|inference|embedding|multimodal|reasoning|machine learning|"
+    r"deep learning|neural|openai|anthropic|gemini|llama|qwen|deepseek|mistral|model)(?![a-z])",
+    re.I,
+)
+
 
 def strip_html(text: str) -> str:
     """去掉 HTML 标签并压缩空白。"""
     without_tags = re.sub(r"<[^>]+>", " ", text or "")
     unescaped = html.unescape(without_tags)
     return re.sub(r"\s+", " ", unescaped).strip()
+
+
+def parse_github_trending(page_html: str, now: datetime) -> list[Item]:
+    """解析 GitHub Trending 页面，保留 AI 相关项目，按今日新增 star 降序。"""
+    items: list[Item] = []
+    blocks = re.findall(r'<article class="Box-row"[^>]*>(.*?)</article>', page_html, re.S)
+    for block in blocks:
+        name_match = re.search(r'<h2[^>]*>\s*<a[^>]*href="/([^"]+)"', block)
+        if not name_match:
+            continue
+        repo = name_match.group(1).strip()
+        stars_match = re.search(r"([\d,]+)\s+stars?\s+today", block)
+        stars = int(stars_match.group(1).replace(",", "")) if stars_match else 0
+        desc_match = re.search(
+            r'<p[^>]*class="[^"]*col-9[^"]*"[^>]*>(.*?)</p>', block, re.S
+        )
+        description = strip_html(desc_match.group(1)) if desc_match else ""
+        if not GITHUB_AI_PATTERN.search(f"{repo} {description}"):
+            continue
+        url = f"https://github.com/{repo}"
+        items.append(
+            Item(
+                id=item_id(url),
+                title=repo,
+                url=url,
+                source="github",
+                published=now,
+                raw=f"{description}（今日新增 {stars} star）"[:400],
+                score=float(stars),
+            )
+        )
+
+    items.sort(key=lambda item: item.score, reverse=True)
+    return items[:GITHUB_TOP_N]
 
 
 def parse_entry_date(entry) -> datetime | None:

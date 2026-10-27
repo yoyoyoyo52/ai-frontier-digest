@@ -386,3 +386,56 @@ def test_main_guard_is_last_statement():
     """入口守卫必须在文件末尾，否则脚本模式会早于定义执行 main。"""
     source = Path(digest.__file__).read_text(encoding="utf-8").rstrip()
     assert source.endswith("sys.exit(main())")
+
+
+from digest import parse_github_trending
+
+GITHUB_HTML = """
+<article class="Box-row">
+  <h2 class="h3 lh-condensed"><a href="/Nutlope/hallmark">Nutlope / hallmark</a></h2>
+  <p class="col-9 color-fg-muted my-1 pr-4">Anti-AI-slop design skill for Claude Code.</p>
+  <span>2,859 stars today</span>
+</article>
+<article class="Box-row">
+  <h2><a href="/acme/agent">acme / agent</a></h2>
+  <p class="col-9">An LLM agent toolkit.</p>
+  <span>1,200 stars today</span>
+</article>
+<article class="Box-row">
+  <h2><a href="/acme/chair">acme / chair</a></h2>
+  <p class="col-9">A chair for your desk.</p>
+  <span>900 stars today</span>
+</article>
+"""
+
+
+def test_parse_github_trending_keeps_ai_items_sorted_by_stars():
+    """只保留 AI 相关项目，并按今日新增 star 降序。"""
+    items = parse_github_trending(GITHUB_HTML, datetime(2026, 10, 27, tzinfo=timezone.utc))
+    assert [item.title for item in items] == ["Nutlope/hallmark", "acme/agent"]
+    assert [item.score for item in items] == [2859.0, 1200.0]
+    assert items[0].url == "https://github.com/Nutlope/hallmark"
+    assert items[0].source == "github"
+
+
+def test_parse_github_trending_ignores_ai_inside_words():
+    """chair 里的 ai 不应命中关键词。"""
+    items = parse_github_trending(GITHUB_HTML, datetime(2026, 10, 27, tzinfo=timezone.utc))
+    assert all("chair" not in item.title for item in items)
+
+
+def test_parse_github_trending_returns_empty_without_articles():
+    """页面结构变化时返回空列表，不抛异常。"""
+    assert parse_github_trending("<html></html>", datetime(2026, 10, 27, tzinfo=timezone.utc)) == []
+
+
+def test_parse_github_trending_caps_at_ten():
+    """超过 10 条时只保留今日 star 最高的 10 条。"""
+    blocks = [
+        f'<article class="Box-row"><h2><a href="/acme/r{n}">r{n}</a></h2>'
+        f'<p class="col-9">LLM project {n}</p><span>{n} stars today</span></article>'
+        for n in range(12)
+    ]
+    items = parse_github_trending("".join(blocks), datetime(2026, 10, 27, tzinfo=timezone.utc))
+    assert len(items) == 10
+    assert min(item.score for item in items) == 2.0
