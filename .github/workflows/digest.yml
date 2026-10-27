@@ -1,3 +1,4 @@
+# resync: force GitHub to re-register this workflow
 name: AI Frontier Digest
 
 on:
