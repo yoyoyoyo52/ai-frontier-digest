@@ -50,7 +50,8 @@ python digest.py              # 真实抓取并发送
 把仓库推送到 GitHub 后，日报在 GitHub 的服务器上运行，不依赖本机开机。
 
 1. 创建一个 **私有仓库**，把本项目推上去，并确认它是默认分支（`master` 或 `main`）。
-2. 在仓库 **Settings → Secrets and variables → Actions** 添加 4 个 secret：
+2. 在 **Settings → Environments → AI前沿资讯 → Environment secrets** 添加 4 个 secret
+   （workflow 已通过 `environment: "AI前沿资讯"` 引用该环境）：
    - `MAIL_USER`：QQ 邮箱地址
    - `MAIL_PASSWORD`：QQ 邮箱 SMTP 授权码
    - `MAIL_TO`：收件邮箱（可同 `MAIL_USER`）
