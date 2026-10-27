@@ -595,6 +595,7 @@ SECTION_ORDER = (
     ("vendor", "厂商动态"),
     ("community", "社区热议"),
     ("chinese", "中文媒体"),
+    ("github", "GitHub 热榜"),
 )
 
 
@@ -656,9 +657,11 @@ def render_html(
             parts.append(f"<p>{escape(summary)}</p>")
             if why:
                 parts.append(f"<p class='why'>为什么重要：{escape(why)}</p>")
-            parts.append(
-                f"<p class='meta'>{escape(item.source)} · {escape(published)}</p>"
-            )
+            if item.source == "github":
+                meta = f"github · 今日 +{int(item.score)} star"
+            else:
+                meta = f"{item.source} · {published}"
+            parts.append(f"<p class='meta'>{escape(meta)}</p>")
             parts.append("</div>")
 
     parts.append("</body></html>")
@@ -685,6 +688,8 @@ def render_text(
             lines.append(f"  {summary}")
             if why:
                 lines.append(f"  为什么重要：{why}")
+            if item.source == "github":
+                lines.append(f"  今日 +{int(item.score)} star")
             lines.append(f"  {item.url}")
             lines.append("")
     return "\n".join(lines)

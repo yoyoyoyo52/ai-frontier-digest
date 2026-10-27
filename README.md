@@ -39,6 +39,7 @@ python digest.py              # 真实抓取并发送
 | DeepMind / Meta Engineering / Qwen / Mistral | 可用 | 7 天 |
 | Hacker News（points ≥ 50） | 可用 | 24 小时 |
 | Reddit r/LocalLLaMA、r/MachineLearning | 当前被 403 拦截，自动跳过 | 24 小时 |
+| GitHub Trending（AI 关键词过滤，今日 star 前 10） | 可用 | 日榜 |
 | 量子位 | 可用 | 7 天 |
 | OpenAI / Anthropic 官方 RSS / 机器之心 | 本网络下不可达或空 feed，暂未启用 | - |
 

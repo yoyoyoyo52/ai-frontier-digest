@@ -30,7 +30,7 @@
 - Modify: `digest.py`
 - Test: `tests/test_digest.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -87,12 +87,12 @@ def test_parse_github_trending_caps_at_ten():
     assert min(item.score for item in items) == 2.0
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -q -k github`
 Expected: FAIL，`ImportError: cannot import name 'parse_github_trending'`
 
-- [ ] **Step 3: 写实现**
+- [x] **Step 3: 写实现**
 
 In `digest.py`, add constants after `REDDIT_FEEDS`:
 ```python
@@ -142,12 +142,12 @@ def parse_github_trending(page_html: str, now: datetime) -> list[Item]:
     return items[:GITHUB_TOP_N]
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -q -k github`
 Expected: 4 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py
@@ -164,7 +164,7 @@ git commit -m "feat: parse github trending ai projects"
 - Modify: `config.example.toml`
 - Modify: `config.toml`
 
-- [ ] **Step 1: 更新配置测试样例**
+- [x] **Step 1: 更新配置测试样例**
 
 In `tests/test_digest.py`, change `CONFIG_SAMPLE`:
 ```toml
@@ -202,12 +202,12 @@ def test_config_rejects_quota_mismatch(tmp_path):
         load_config(write_config(tmp_path, bad))
 ```
 
-- [ ] **Step 2: 运行配置测试确认通过**
+- [x] **Step 2: 运行配置测试确认通过**
 
 Run: `python -m pytest tests/test_digest.py -q -k config`
 Expected: 3 passed（`load_config` 尚未依赖新产物）
 
-- [ ] **Step 3: 实现抓取与接入**
+- [x] **Step 3: 实现抓取与接入**
 
 In `digest.py`, add after `fetch_chinese`:
 ```python
@@ -226,7 +226,7 @@ def fetch_github(since: datetime) -> list[Item]:
 Add `"github": "github"` to `SOURCE_GROUP`, `"github": fetch_github` to `FETCHERS`,
 and `"github": 24` to `SOURCE_LOOKBACK_HOURS`.
 
-- [ ] **Step 4: 更新示例与本地配置**
+- [x] **Step 4: 更新示例与本地配置**
 
 `config.example.toml`:
 ```toml
@@ -247,12 +247,12 @@ github = true
 
 `config.toml` 只改 `[digest]` 与 `[sources]` 两段，保留真实凭据。
 
-- [ ] **Step 5: 运行全部测试**
+- [x] **Step 5: 运行全部测试**
 
 Run: `python -m pytest tests/test_digest.py -q`
 Expected: 34 passed
 
-- [ ] **Step 6: 实测抓取**
+- [x] **Step 6: 实测抓取**
 
 Run:
 ```bash
@@ -260,7 +260,7 @@ python -c "from digest import fetch_github, now_utc; items = fetch_github(now_ut
 ```
 Expected: 打印 0-10 条，score 为今日新增 star；网络异常时抛错由上层捕获。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py config.example.toml
@@ -276,7 +276,7 @@ git commit -m "feat: add github trending source to pipeline"
 - Modify: `tests/test_digest.py`
 - Modify: `README.md`
 
-- [ ] **Step 1: 写失败的渲染测试**
+- [x] **Step 1: 写失败的渲染测试**
 
 Append to `tests/test_digest.py`:
 ```python
@@ -289,12 +289,12 @@ def test_render_html_shows_github_stars():
     assert "今日 +123 star" in html
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `python -m pytest tests/test_digest.py -q -k github_stars`
 Expected: FAIL，`assert "GitHub 热榜" in html`
 
-- [ ] **Step 3: 实现小节与署名**
+- [x] **Step 3: 实现小节与署名**
 
 In `digest.py`, add to `SECTION_ORDER` at the end:
 ```python
@@ -310,24 +310,24 @@ In `render_html`, replace the meta line:
             parts.append(f"<p class='meta'>{escape(meta)}</p>")
 ```
 
-- [ ] **Step 4: 运行全部测试**
+- [x] **Step 4: 运行全部测试**
 
 Run: `python -m pytest tests/test_digest.py -q`
 Expected: 35 passed
 
-- [ ] **Step 5: 更新 README 数据源表**
+- [x] **Step 5: 更新 README 数据源表**
 
 Add a row to the table:
 ```markdown
 | GitHub Trending（AI 关键词过滤，今日 star 前 10） | 可用 | 日榜 |
 ```
 
-- [ ] **Step 6: 端到端 dry-run**
+- [x] **Step 6: 端到端 dry-run**
 
 Run: `python digest.py --dry-run`
 Expected: 退出码 0；`preview.html` 含 “GitHub 热榜” 小节与 `今日 +N star` 署名。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add digest.py tests/test_digest.py README.md

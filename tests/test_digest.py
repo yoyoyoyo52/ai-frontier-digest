@@ -441,3 +441,20 @@ def test_parse_github_trending_caps_at_ten():
     items = parse_github_trending("".join(blocks), datetime(2026, 10, 27, tzinfo=timezone.utc))
     assert len(items) == 10
     assert min(item.score for item in items) == 2.0
+
+
+def test_render_html_shows_github_stars():
+    """GitHub 条目署名显示今日新增 star，而不是抓取时间。"""
+    item = make_item("owner/repo", 123, "https://github.com/owner/repo")
+    item.source = "github"
+    html = render_html([item], {}, "2026-10-27", degraded=False)
+    assert "GitHub 热榜" in html
+    assert "今日 +123 star" in html
+
+
+def test_render_text_shows_github_stars():
+    """纯文本版本同样显示 GitHub 今日新增 star。"""
+    item = make_item("owner/repo", 123, "https://github.com/owner/repo")
+    item.source = "github"
+    text = render_text([item], {}, "2026-10-27", degraded=False)
+    assert "今日 +123 star" in text
